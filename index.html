@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>画像一括変換</title>
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#111">
+
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="画像変換">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+<style>
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  background: #111;
+  color: #fff;
+}
+header {
+  padding: 16px;
+  text-align: center;
+  font-weight: bold;
+}
+#drop {
+  margin: 16px;
+  padding: 40px 20px;
+  border: 2px dashed #666;
+  border-radius: 12px;
+  text-align: center;
+}
+select, button {
+  width: calc(100% - 32px);
+  margin: 16px;
+  padding: 16px;
+  font-size: 16px;
+  border-radius: 12px;
+  border: none;
+}
+button {
+  background: #4caf50;
+  color: #000;
+  font-weight: bold;
+}
+</style>
+</head>
+
+<body>
+
+<header>画像一括変換</header>
+
+<div id="drop">
+  タップして画像を選択
+  <input type="file" id="file" multiple accept="image/*" hidden>
+</div>
+
+<select id="format">
+  <option value="image/png">PNG</option>
+  <option value="image/jpeg">JPG</option>
+  <option value="image/webp">WebP</option>
+</select>
+
+<button onclick="convert()">変換してZIP保存</button>
+
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js');
+}
+
+const drop = document.getElementById('drop');
+const fileInput = document.getElementById('file');
+let files = [];
+
+drop.onclick = () => fileInput.click();
+fileInput.onchange = e => files = [...e.target.files];
+
+async function convert() {
+  if (!files.length) return alert("画像を選択してね");
+
+  navigator.vibrate?.(30);
+
+  const zip = new JSZip();
+  const format = document.getElementById('format').value;
+
+  for (const file of files) {
+    const img = await loadImage(file);
+    const c = document.createElement('canvas');
+    c.width = img.width;
+    c.height = img.height;
+    c.getContext('2d').drawImage(img, 0, 0);
+
+    const blob = await new Promise(r => c.toBlob(r, format, 0.92));
+    const ext = format.split('/')[1];
+    zip.file(file.name.replace(/\..+$/, '') + '.' + ext, blob);
+  }
+
+  saveAs(await zip.generateAsync({type:'blob'}), 'images.zip');
+}
+
+function loadImage(file) {
+  return new Promise(r => {
+    const i = new Image();
+    i.onload = () => r(i);
+    i.src = URL.createObjectURL(file);
+  });
+}
+</script>
+
+</body>
+</html>
